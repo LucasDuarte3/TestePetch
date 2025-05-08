@@ -28,7 +28,7 @@ if (isset($_SESSION['sucesso'])) {
     <div class="image-login">    
         <img src="<?=BASE_PATH?>/images/imgLogin.jpg"alt="" srcset="">
     </div>
-<div class="auth-container fade-in">
+    <div class="auth-container fade-in">
         <div class="login-container">
             <h2 class="text-center mb-4">Acesse sua conta</h2>
             
@@ -54,12 +54,12 @@ if (isset($_SESSION['sucesso'])) {
                 </div>
                 <!-- Falta fazer a pagina de recuperação da senha -->
                 <div class="d-grid gap-2 mt-2">
-                    <button type="button" class="btn btn-secondary" onclick="window.location.href='<?= BASE_PATH ?>/recuperar_senha.php'">Esqueci minha senha</button> 
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='<?= PUBLIC_PATH ?>/RedefinirSenha.php'">Esqueci minha senha</button> 
                 </div>
             </form>
         </div>
     </div>
-
+    <div><?php include ROOT_PATH . '/app/views/footer.php'; ?></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

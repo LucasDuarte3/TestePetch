@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../service/MailService.php';
+require_once __DIR__ . '/../models/Adocao.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -15,8 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     try {
         // 1. VALIDAÇÃO DOS DADOS
         $requiredFields = [
-            'nome', 'email', 'senha', 'endereco', 
-            'cep', 'bairro', 'estado', 'cidade'
+            'nome', 'email', 'confirmacao_email', 
+            'senha', 'confirmacao_senha', 'estado', 'cidade', 'cep', 
+            'endereco'
         ];
 
         foreach ($requiredFields as $field) {
@@ -51,27 +53,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
             'nome' => $_POST['nome'],
             'email' => $_POST['email'],
             'senha' => $_POST['senha'],
-            'telefone' => $_POST['telefone'],
-            'endereco' => $_POST['endereco'],
-            'cpf' => $_POST['cpf'] ?? null,
-            'cnpj' => $_POST['cnpj'] ?? null,
-            'estado' => $_POST['estado'],
-            'cidade' => $_POST['cidade'],
-            'cep' => $_POST['cep'],
-            'bairro' => $_POST['bairro'],
-            'numero' => $_POST['numero'],
-            'complemento' => $_POST['complemento'] ?? null,
-            'token_expira' => date('Y-m-d H:i:s', strtotime('+24 hours')), // Alterado para 'token_expira'
-            'token_confirmacao' => bin2hex(random_bytes(32)), // Gerando token de confirmação
-            'celular' => $_POST['celular'] ?? null // Adicionado o campo 'celular'
+            'telefone' => $_POST['telefone'] ?? null,
+            'endereco' => $_POST['endereco'] ?? null,
+            'cpf_cnpj' => $_POST['cpf'] ?? $_POST['cnpj'] ?? null,
+            'tipo' => 'usuario', // Tipo de usuário (pode ser 'usuario' ou 'admin')
+            'token_verificacao' => bin2hex(random_bytes(32)), // Verificação de e-mail
+            'token_reset' => null, // Só será preenchido quando o usuário solicitar
         ];
 
         // 3. CADASTRA USUÁRIO COM TOKEN
         $userId = $user->createWithToken($dadosUsuario);
 
         if ($userId) {
+            $_SESSION['usuario_temp'] = [
+                'email' => $_POST['email'],
+                'nome' => $_POST['nome'],
+                'token' => $dadosUsuario['token_verificacao']
+            ];
             // 4. ENVIA E-MAIL DE CONFIRMAÇÃO
-            $confirmacaoUrl = BASE_PATH . "/confirmacao/confirmar.php?token=" . $dadosUsuario['token_confirmacao'];
+            $confirmacaoUrl = (isset($_SERVER['HTTPS']) ? 'https://' : 'http://') . 
+                     $_SERVER['HTTP_HOST'] . 
+                     PUBLIC_PATH . 
+                     "/confirmacao/confirmar.php?token=" . 
+                     urlencode($dadosUsuario['token_verificacao']);
             
             if ($mailService->sendConfirmationEmail(
                 $_POST['email'],
@@ -95,11 +99,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     }
 }
 
+// ============================
+// FORMULÁRIO DE ADOÇÃO
+// ============================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'form_adocao') {
+    $formAdocao = new FormAdocao($pdo);
+
+    try {
+        $dados = [
+            'nome' => $_POST['nome'],
+            'email' => $_POST['email'],
+            'telefone' => $_POST['telefone'],
+            'endereco' => $_POST['endereco'],
+            'tipo_moradia' => $_POST['tipo_moradia'],
+            'tela_protecao' => $_POST['tela_protecao'],
+            'condominio_permite' => $_POST['condominio_permite'],
+            'espaco_suficiente' => $_POST['espaco_suficiente'],
+            'condicoes_financeiras' => $_POST['condicoes_financeiras'],
+            'compromisso' => $_POST['compromisso']
+        ];
+
+        $formAdocao->salvar($dados);
+
+        header("Location: " . PUBLIC_PATH . "/confirmacao/sucesso.html");
+        exit();
+
+    } catch (Exception $e) {
+        $_SESSION['erro'] = "Erro ao enviar formulário: " . $e->getMessage();
+        header("Location: " . PUBLIC_PATH . "/form_adocao.php");
+        exit();
+    }
+}
+
 // Rota para reenviar confirmação (opcional)
 if (isset($_GET['acao']) && $_GET['acao'] === 'reenviar-confirmacao') {
     if (!empty($_SESSION['usuario_temp'])) {
         $mailService = new MailService();
-        $confirmacaoUrl = BASE_PATH . "/confirmacao/confirmar.php?token=" . $_SESSION['usuario_temp']['token'];
+        $confirmacaoUrl = PUBLIC_PATH . "/confirmacao/confirmar.php?token=" . $_SESSION['usuario_temp']['token'];
         
         if ($mailService->sendConfirmationEmail(
             $_SESSION['usuario_temp']['email'],

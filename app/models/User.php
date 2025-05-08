@@ -19,33 +19,27 @@ class User {
             }
 
             // Gera token e data de expiração (24 horas)
-            $token = bin2hex(random_bytes(32));
-            $token_expira = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            $token = $dados['token_verificacao']; // Já vem do controller
+            $token_reset = $dados['token_reset'] ?? null;
+
 
             $sql = "INSERT INTO usuarios (
-                nome, email, senha, telefone, endereco, cpf_cnpj, 
-                cep, bairro, estado, cidade, numero, complemento, token_expira, 
-                token_confirmacao, email_confirmado, celular, tipo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)";
-            
+                nome, email, senha, telefone, endereco,
+                cpf_cnpj, tipo, token_verificacao, verificado, token_reset
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([
                 $dados['nome'],
                 $dados['email'],
                 password_hash($dados['senha'], PASSWORD_DEFAULT),
-                $dados['telefone'] ?? null,  // Permite telefone ser nulo
-                $dados['endereco'] ?? null,  // Permite endereço ser nulo
-                $dados['cpf_cnpj'] ?? null,  // Corrigido para usar 'cpf_cnpj'
-                $dados['cep'] ?? null,       // Permite cep ser nulo
-                $dados['bairro'] ?? null,    // Permite bairro ser nulo
-                $dados['estado'] ?? null,    // Permite estado ser nulo
-                $dados['cidade'] ?? null,    // Permite cidade ser nulo
-                $dados['numero'] ?? null,    // Permite numero ser nulo
-                $dados['complemento'] ?? null, // Permite complemento ser nulo
-                $token_expira,  // token_expira gerado previamente
-                $token,         // token_confirmacao gerado previamente
-                $dados['celular'] ?? null,    // Permite celular ser nulo
-                $dados['tipo'] ?? null        // Permite tipo ser nulo
+                $dados['telefone'] ?? null,
+                $dados['endereco'] ?? null,
+                $dados['cpf_cnpj'] ?? null,
+                $dados['tipo'] ?? 'usuario',
+                $token,
+                0, // Não verificado inicialmente
+                $token_reset
             ]);
 
             return $this->pdo->lastInsertId();
@@ -74,7 +68,7 @@ class User {
     public function verifyEmail($token) {
         try {
             // Primeiro verifica se o token é válido e não expirou
-            $sql = "SELECT id FROM usuarios WHERE token_confirmacao = ? AND token_expira > NOW()";
+            $sql = "SELECT id FROM usuarios WHERE token_verificacao = ?";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([$token]);
             
@@ -84,10 +78,9 @@ class User {
 
             // Atualiza o usuário como confirmado
             $sql = "UPDATE usuarios SET 
-                    email_confirmado = 1,
-                    token_confirmacao = NULL,
-                    token_expira = NULL
-                    WHERE token_confirmacao = ?";
+                    verificado = 1,
+                    token_verificacao = NULL
+                    WHERE token_verificacao = ?";
                     
             $stmt = $this->pdo->prepare($sql);
             return $stmt->execute([$token]);
@@ -151,5 +144,82 @@ class User {
         $stmt->execute([$documento]);
         return (bool) $stmt->fetch();
     }
+    
+    /**
+    * Busca usuário por ID
+    */
+    public function getById($id) {
+        $stmt = $this->pdo->prepare("SELECT * FROM usuarios WHERE id = :id");
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Gera token para redefinição de senha
+     * @param string $email
+     * @return string|false Token gerado ou false em caso de erro
+     */
+    public function generatePasswordResetToken($email) {
+        try {
+            // Verifica se o e-mail existe
+            $user = $this->findByEmail($email);
+            if (!$user) {
+                throw new Exception("E-mail não cadastrado.");
+            }
+
+            // Gera token e data de expiração (1 hora)
+            $token = bin2hex(random_bytes(32));
+
+            // Atualiza no banco
+            $sql = "UPDATE usuarios SET 
+                    token_reset = ?
+                    WHERE email = ?";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$token, $email]);
+
+            return $token;
+        } catch (PDOException $e) {
+            error_log("Erro ao gerar token: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Redefine a senha com base no token válido
+     * @param string $token
+     * @param string $novaSenha
+     * @return bool Sucesso da operação
+     */
+    public function resetPassword($token, $novaSenha) {
+        try {
+            // Verifica se o token é válido e não expirou
+            $sql = "SELECT id FROM usuarios 
+                    WHERE token_reset = ?";
+            
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([$token]);
+
+            if ($stmt->rowCount() === 0) {
+                throw new Exception("Token inválido ou expirado!");
+            }
+
+            // Atualiza a senha e limpa o token
+            $sql = "UPDATE usuarios SET 
+                    senha = ?,
+                    token_reset = NULL
+                    WHERE token_reset = ?";
+            
+            $stmt = $this->pdo->prepare($sql);
+            return $stmt->execute([
+                password_hash($novaSenha, PASSWORD_DEFAULT),
+                $token
+            ]);
+        } catch (PDOException $e) {
+            error_log("Erro ao redefinir senha: " . $e->getMessage());
+            return false;
+        }
+    }
+
 }
 ?>

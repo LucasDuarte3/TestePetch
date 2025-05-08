@@ -17,7 +17,7 @@ function protegerRota($nivelAcesso = 'usuario') {
     // Verificar se o e-mail foi confirmado
     if (isset($_SESSION['usuario']['verificado']) && !$_SESSION['usuario']['verificado']) {
         $_SESSION['erro'] = "Por favor, verifique seu e-mail antes de acessar.";
-        header("Location:" . PUBLIC_PATH . "/login.php");
+        header("Location: /frontend/views/auth/login.php");
         exit;
     }
 

@@ -26,13 +26,19 @@ class MailService {
             $this->mail->Subject = 'Confirme seu cadastro no Petch';
             
             $this->mail->Body = "
-                <h1>Olá, $toName!</h1>
-                <p>Obrigado por se cadastrar no Petch!</p>
-                <p>Para ativar sua conta, clique no link abaixo:</p>
-                <p><a href='$confirmationUrl' style='background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;'>Confirmar E-mail</a></p>
-                <p>Ou copie este link: $confirmationUrl</p>
-                <p>Este link expira em 24 horas.</p>
-                
+                <html>
+                <body>
+                    <h1>Olá, $toName!</h1>
+                    <p>Obrigado por se cadastrar no Petch!</p>
+                    <p>Para ativar sua conta, clique no botão abaixo:</p>
+                    <p>
+                        <a href='$confirmationUrl' style='display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;'>
+                            Confirmar E-mail
+                        </a>
+                    </p>
+                    <p>Ou copie e cole este link no navegador: $confirmationUrl</p>
+                </body>
+                </html>
             ";
             
             $this->mail->AltBody = "Olá $toName!\n\nConfirme seu cadastro acessando: $confirmationUrl";
@@ -40,6 +46,39 @@ class MailService {
             return $this->mail->send();
         } catch (Exception $e) {
             error_log("Erro ao enviar e-mail: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function sendPasswordResetEmail($toEmail, $toName, $resetUrl) {
+        try {
+            $this->mail->setFrom('seuemail@gmail.com', 'Petch - Redefinição de Senha');
+            $this->mail->addAddress($toEmail, $toName);
+            $this->mail->isHTML(true);
+            $this->mail->Subject = 'Redefina sua senha no Petch';
+            
+            $this->mail->Body = "
+                <html>
+                <body>
+                    <h1>Olá, $toName!</h1>
+                    <p>Recebemos uma solicitação para redefinir sua senha.</p>
+                    <p>Clique no botão abaixo para redefinir:</p>
+                    <p>
+                        <a href='$resetUrl' style='display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;'>
+                            Redefinir Senha
+                        </a>
+                    </p>
+                    <p>Ou copie e cole este link no navegador: $resetUrl</p>
+                    <p>Se não foi você quem solicitou, ignore este e-mail.</p>
+                </body>
+                </html>
+            ";
+            
+            $this->mail->AltBody = "Redefina sua senha: $resetUrl";
+            
+            return $this->mail->send();
+        } catch (Exception $e) {
+            error_log("Erro ao enviar e-mail de redefinição: " . $e->getMessage());
             return false;
         }
     }
