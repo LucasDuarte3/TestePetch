@@ -2,7 +2,8 @@
 // routes.php - Centralizador de Rotas do Sistema Petch
 
 // Configurações básicas
-define('BASE_PATH', '/Petch'); // Altere conforme sua estrutura de pastas
+define('ROOT_PATH', __DIR__); // Caminho Físico Real do Projeto
+define('BASE_PATH', '/Petch'); // Altere conforme sua estrutura de pastas. Só para links, não para include!
 define('PUBLIC_PATH', BASE_PATH . '/public');
 define('ADMIN_PATH', BASE_PATH . '/admin');
 define('VIEWS_PATH', BASE_PATH . '/views');
@@ -54,7 +55,11 @@ $publicRoutes = [
 // Rotas de API/Controllers
 $apiRoutes = [
     '/auth' => 'app/controllers/AuthController.php',
-    '/user' => 'app/controllers/UserController.php'
+    '/user' => 'app/controllers/UserController.php',
+    '/mail' => 'app/controllers/MailController.php',
+    '/modelUser' => 'app/models/User.php',
+    '/modelMail' => 'app/models/UserMail.php',
+    '/service' => 'app/service/MailService.php'
 ];
 
 // Rotas Administrativas
